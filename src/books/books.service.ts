@@ -49,6 +49,23 @@ export class BooksService {
     });
   }
 
+  async calculateBookRating(bookId: number): Promise<number> {
+    const result = await this.prisma.review.aggregate({
+      where: { bookId },
+      _avg: { rating: true },
+    });
+
+    return result._avg.rating || 0;
+  }
+
+  async calculateBookPopularity(bookId: number): Promise<number> {
+    const result = await this.prisma.review.count({
+      where: { bookId },
+    });
+
+    return result;
+  }
+
   async create(userId: number, createBookDto: CreateBookDto) {
     const eventId = randomUUID();
     this.logSuccess('Creating a new book', eventId, userId, { createBookDto });

@@ -12,14 +12,6 @@ enum Role {
   ADMIN
 }
 
-enum Rating {
-  ONE
-  TWO
-  THREE
-  FOUR
-  FIVE
-}
-
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
@@ -50,7 +42,7 @@ model Book {
 model Review {
   id        Int      @id @default(autoincrement())
   content   String
-  rating    Rating
+  rating    Int      @default(1)
   createdAt DateTime @default(now())
   userId    Int
   bookId    Int

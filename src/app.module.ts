@@ -7,6 +7,7 @@ import { PrismaModule } from 'prisma/prisma.module';
 import { BooksModule } from './books/books.module';
 import { AuthModule } from './auth/auth.module';
 import { LoggerModule } from './logger.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { LoggerModule } from './logger.module';
     PrismaModule,
     BooksModule,
     AuthModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
