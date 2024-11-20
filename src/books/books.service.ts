@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
@@ -6,53 +11,139 @@ import { FilterBooksDto } from './dto/filter-book.dto';
 
 @Injectable()
 export class BooksService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(BooksService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createBookDto: CreateBookDto) {
-    return this.prisma.book.create({
-      data: createBookDto,
-    });
+    this.logger.log(
+      `Creating a new book with data: ${JSON.stringify(createBookDto)}`,
+    );
+    try {
+      const book = await this.prisma.book.create({
+        data: createBookDto,
+      });
+      this.logger.log(`Book created successfully with ID: ${book.id}`);
+      return book;
+    } catch (error) {
+      if (error instanceof Error) {
+        this.logger.error('Error creating book', error.stack);
+      } else {
+        this.logger.error('Error creating book', JSON.stringify(error));
+      }
+      throw new InternalServerErrorException('Failed to create book');
+    }
   }
 
   async findAll(filterBooksDto: FilterBooksDto) {
-    const { title, author, genre, sort } = filterBooksDto;
+    this.logger.log(
+      `Fetching all books with filters: ${JSON.stringify(filterBooksDto)}`,
+    );
+    try {
+      const { title, author, genre, sort } = filterBooksDto;
 
-    return this.prisma.book.findMany({
-      where: {
-        ...(title && { title: { contains: title, mode: 'insensitive' } }),
-        ...(author && { author: { contains: author, mode: 'insensitive' } }),
-        ...(genre && { genre: { contains: genre, mode: 'insensitive' } }),
-      },
-      orderBy: sort ? { [sort]: 'asc' } : undefined,
-    });
+      const books = await this.prisma.book.findMany({
+        where: {
+          ...(title && { title: { contains: title, mode: 'insensitive' } }),
+          ...(author && { author: { contains: author, mode: 'insensitive' } }),
+          ...(genre && { genre: { contains: genre, mode: 'insensitive' } }),
+        },
+        orderBy: sort ? { [sort]: 'asc' } : undefined,
+      });
+
+      this.logger.log(`Fetched ${books.length} books successfully`);
+      return books;
+    } catch (error) {
+      if (error instanceof Error) {
+        this.logger.error('Error fetching books', error.stack);
+      } else {
+        this.logger.error('Error fetching books', JSON.stringify(error));
+      }
+      throw new InternalServerErrorException('Failed to fetch books');
+    }
   }
 
   async findOne(id: number) {
-    const book = await this.prisma.book.findUnique({
-      where: { id },
-    });
+    this.logger.log(`Fetching book with ID: ${id}`);
+    try {
+      const book = await this.prisma.book.findUnique({
+        where: { id },
+      });
 
-    if (!book) {
-      throw new NotFoundException(`Book with ID ${id} not found`);
+      if (!book) {
+        this.logger.warn(`Book with ID: ${id} not found`);
+        throw new NotFoundException(`Book with ID ${id} not found`);
+      }
+
+      this.logger.log(`Fetched book successfully with ID: ${id}`);
+      return book;
+    } catch (error) {
+      if (error instanceof Error) {
+        this.logger.error(`Error fetching book with ID: ${id}`, error.stack);
+      } else {
+        this.logger.error(
+          `Error fetching book with ID: ${id}`,
+          JSON.stringify(error),
+        );
+      }
+      throw new InternalServerErrorException(
+        `Failed to fetch book with ID ${id}`,
+      );
     }
-
-    return book;
   }
 
   async update(id: number, updateBookDto: UpdateBookDto) {
-    const book = await this.findOne(id);
+    this.logger.log(
+      `Updating book with ID: ${id} and data: ${JSON.stringify(updateBookDto)}`,
+    );
+    try {
+      const book = await this.findOne(id);
 
-    return this.prisma.book.update({
-      where: { id: book.id },
-      data: updateBookDto,
-    });
+      const updatedBook = await this.prisma.book.update({
+        where: { id: book.id },
+        data: updateBookDto,
+      });
+
+      this.logger.log(`Book with ID: ${id} updated successfully`);
+      return updatedBook;
+    } catch (error) {
+      if (error instanceof Error) {
+        this.logger.error(`Error updating book with ID: ${id}`, error.stack);
+      } else {
+        this.logger.error(
+          `Error updating book with ID: ${id}`,
+          JSON.stringify(error),
+        );
+      }
+      throw new InternalServerErrorException(
+        `Failed to update book with ID ${id}`,
+      );
+    }
   }
 
   async delete(id: number) {
-    await this.findOne(id);
+    this.logger.log(`Deleting book with ID: ${id}`);
+    try {
+      const book = await this.findOne(id);
 
-    return this.prisma.book.delete({
-      where: { id },
-    });
+      await this.prisma.book.delete({
+        where: { id: book.id },
+      });
+
+      this.logger.log(`Book with ID: ${id} deleted successfully`);
+      return { message: `Book with ID ${id} deleted successfully` };
+    } catch (error) {
+      if (error instanceof Error) {
+        this.logger.error(`Error deleting book with ID: ${id}`, error.stack);
+      } else {
+        this.logger.error(
+          `Error deleting book with ID: ${id}`,
+          JSON.stringify(error),
+        );
+      }
+      throw new InternalServerErrorException(
+        `Failed to delete book with ID ${id}`,
+      );
+    }
   }
 }

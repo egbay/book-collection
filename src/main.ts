@@ -5,7 +5,6 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Swagger yapılandırması
   const config = new DocumentBuilder()
     .setTitle('Book Collection API')
     .setDescription('API documentation for the Book Collection project')
