@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { PrismaModule } from 'prisma/prisma.module';
 import { BooksModule } from './books/books.module';
 import { AuthModule } from './auth/auth.module';
+import { LoggerModule } from './logger.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    LoggerModule,
     PrismaModule,
     BooksModule,
     AuthModule,

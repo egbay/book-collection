@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ValidationPipe } from '@nestjs/common'; // ValidationPipe için import
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -14,7 +14,6 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger yapılandırması
   const config = new DocumentBuilder()
     .setTitle('Book Collection API')
     .setDescription('API documentation for the Book Collection project')
