@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Req,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,6 +21,8 @@ import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from 'src/auth/roles.decorator';
+import { Role } from 'src/auth/role.enum';
 
 @ApiTags('reviews')
 @ApiBearerAuth()
@@ -29,6 +32,7 @@ export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
   @Post()
+  @Roles(Role.ADMIN)
   @ApiBody({
     description: 'The data needed to create a new review',
     type: CreateReviewDto,
@@ -54,6 +58,7 @@ export class ReviewsController {
   }
 
   @Get()
+  @Roles(Role.USER, Role.ADMIN)
   @ApiResponse({
     status: 200,
     description: 'List of all reviews.',
@@ -64,6 +69,7 @@ export class ReviewsController {
   }
 
   @Get(':id')
+  @Roles(Role.USER, Role.ADMIN)
   @ApiParam({
     name: 'id',
     example: 1,
@@ -79,10 +85,17 @@ export class ReviewsController {
   })
   async getReviewById(@Req() req, @Param('id') id: string) {
     const userId = req.user.userId;
-    return this.reviewsService.findOne(userId, +id);
+    const review = await this.reviewsService.findOne(userId, +id);
+
+    if (!review) {
+      throw new NotFoundException(`Review with ID ${id} not found`);
+    }
+
+    return review;
   }
 
   @Patch(':id')
+  @Roles(Role.ADMIN)
   @ApiParam({
     name: 'id',
     example: 1,
@@ -115,6 +128,7 @@ export class ReviewsController {
   }
 
   @Delete(':id')
+  @Roles(Role.ADMIN)
   @ApiParam({
     name: 'id',
     example: 1,

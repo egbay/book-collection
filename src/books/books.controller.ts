@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Req,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,14 +24,18 @@ import { UpdateBookDto } from './dto/update-book.dto';
 import { FilterBooksDto } from './dto/filter-book.dto';
 import { BookEntity } from './entities/book.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
+import { Role } from '../auth/role.enum';
 
 @ApiTags('books')
 @Controller('books')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class BooksController {
   constructor(private readonly booksService: BooksService) {}
 
   @Post()
+  @Roles(Role.ADMIN)
   @ApiBody({
     description: 'The data needed to create a new book',
     type: CreateBookDto,
@@ -57,6 +62,7 @@ export class BooksController {
   }
 
   @Get()
+  @Roles(Role.USER, Role.ADMIN)
   @ApiQuery({
     name: 'title',
     required: false,
@@ -92,6 +98,7 @@ export class BooksController {
   }
 
   @Get(':id')
+  @Roles(Role.USER, Role.ADMIN)
   @ApiParam({
     name: 'id',
     example: 1,
@@ -101,10 +108,17 @@ export class BooksController {
   @ApiResponse({ status: 404, description: 'Book not found.' })
   async getBookById(@Req() req, @Param('id') id: string) {
     const userId = req.user.userId;
-    return this.booksService.findOne(userId, +id);
+    const book = await this.booksService.findOne(userId, +id);
+
+    if (!book) {
+      throw new NotFoundException(`Book with ID ${id} not found`);
+    }
+
+    return book;
   }
 
   @Put(':id')
+  @Roles(Role.ADMIN)
   @ApiParam({
     name: 'id',
     example: 1,
@@ -140,6 +154,7 @@ export class BooksController {
   }
 
   @Delete(':id')
+  @Roles(Role.ADMIN)
   @ApiParam({
     name: 'id',
     example: 1,

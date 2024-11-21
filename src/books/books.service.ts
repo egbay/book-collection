@@ -23,13 +23,14 @@ export class BooksService {
     message: string,
     eventId: string,
     userId: number,
-    data: any = {},
+    details: Record<string, any>,
   ) {
-    this.logger.info(message, {
-      timestamp: new Date().toISOString(),
+    this.logger.info({
+      level: 'success',
+      message,
       eventId,
       userId,
-      meta: data,
+      details,
     });
   }
 
@@ -39,13 +40,12 @@ export class BooksService {
     userId: number,
     error: any,
   ) {
-    const errorMeta =
-      error instanceof Error ? { stack: error.stack } : { error };
-    this.logger.error(message, {
-      timestamp: new Date().toISOString(),
+    this.logger.error({
+      level: 'error',
+      message,
       eventId,
       userId,
-      meta: errorMeta,
+      error: error?.message || error,
     });
   }
 
@@ -88,27 +88,54 @@ export class BooksService {
       filters: filterBooksDto,
     });
 
+    const { title, author, genre, page = 1, limit = 10, sort } = filterBooksDto;
+    const skip = (page - 1) * limit;
+
     try {
-      const books = await this.prisma.book.findMany({
-        where: {
-          ...(filterBooksDto.title && {
-            title: { contains: filterBooksDto.title, mode: 'insensitive' },
-          }),
-          ...(filterBooksDto.author && {
-            author: { contains: filterBooksDto.author, mode: 'insensitive' },
-          }),
-          ...(filterBooksDto.genre && {
-            genre: { contains: filterBooksDto.genre, mode: 'insensitive' },
-          }),
-        },
-        orderBy: filterBooksDto.sort
-          ? { [filterBooksDto.sort]: 'asc' }
-          : undefined,
-      });
+      const [books, total] = await Promise.all([
+        this.prisma.book.findMany({
+          where: {
+            ...(title && {
+              title: { contains: title, mode: 'insensitive' },
+            }),
+            ...(author && {
+              author: { contains: author, mode: 'insensitive' },
+            }),
+            ...(genre && {
+              genre: { contains: genre, mode: 'insensitive' },
+            }),
+          },
+          orderBy: sort ? { [sort]: 'asc' } : undefined,
+          skip,
+          take: limit,
+        }),
+        this.prisma.book.count({
+          where: {
+            ...(title && {
+              title: { contains: title, mode: 'insensitive' },
+            }),
+            ...(author && {
+              author: { contains: author, mode: 'insensitive' },
+            }),
+            ...(genre && {
+              genre: { contains: genre, mode: 'insensitive' },
+            }),
+          },
+        }),
+      ]);
+
       this.logSuccess('Books fetched successfully', eventId, userId, {
         count: books.length,
+        total,
       });
-      return books;
+
+      return {
+        data: books,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
     } catch (error) {
       this.logError('Error fetching books', eventId, userId, error);
       throw new InternalServerErrorException('Failed to fetch books');
@@ -117,7 +144,7 @@ export class BooksService {
 
   async findOne(userId: number, id: number) {
     const eventId = randomUUID();
-    this.logSuccess(`Fetching book with ID: ${id}`, eventId, userId);
+    this.logSuccess(`Fetching book with ID: ${id}`, eventId, userId, { id });
 
     try {
       const book = await this.prisma.book.findUnique({ where: { id } });
@@ -130,6 +157,9 @@ export class BooksService {
       });
       return book;
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       this.logError('Error fetching book', eventId, userId, error);
       throw new InternalServerErrorException(
         `Failed to fetch book with ID ${id}`,
@@ -163,10 +193,13 @@ export class BooksService {
 
   async delete(userId: number, id: number) {
     const eventId = randomUUID();
-    this.logSuccess(`Deleting book with ID: ${id}`, eventId, userId);
+    this.logSuccess(`Deleting book with ID: ${id}`, eventId, userId, { id });
 
     try {
       const existingBook = await this.findOne(userId, id);
+      if (!existingBook) {
+        throw new NotFoundException(`The book with ID ${id} does not exist`);
+      }
       await this.prisma.book.delete({ where: { id: existingBook.id } });
       this.logSuccess('Book deleted successfully', eventId, userId, {
         bookId: id,

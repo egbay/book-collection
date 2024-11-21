@@ -141,8 +141,13 @@ export class ReviewsService {
       this.logSuccess('Review fetched successfully', eventId, userId, {
         reviewId: id,
       });
+
       return review;
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
       this.logError('Error fetching review', eventId, userId, error);
       throw new InternalServerErrorException(
         `Failed to fetch review with ID ${id}`,
@@ -194,14 +199,13 @@ export class ReviewsService {
 
     try {
       const existingReview = await this.findOne(userId, id);
+
       await this.prisma.review.delete({ where: { id: existingReview.id } });
 
-      const newPopularity = await this.booksService.calculateBookPopularity(
-        existingReview.bookId,
-      );
-      const newRating = await this.booksService.calculateBookRating(
-        existingReview.bookId,
-      );
+      const [newPopularity, newRating] = await Promise.all([
+        this.booksService.calculateBookPopularity(existingReview.bookId),
+        this.booksService.calculateBookRating(existingReview.bookId),
+      ]);
 
       await this.prisma.book.update({
         where: { id: existingReview.bookId },
@@ -216,11 +220,16 @@ export class ReviewsService {
           reviewId: id,
           bookId: existingReview.bookId,
           newPopularity,
+          newRating,
         },
       );
 
       return { message: `Review with ID ${id} deleted successfully` };
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
       this.logError('Error deleting review', eventId, userId, error);
       throw new InternalServerErrorException(
         `Failed to delete review with ID ${id}`,
