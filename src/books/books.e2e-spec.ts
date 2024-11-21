@@ -108,7 +108,7 @@ describe('BooksModule (E2E)', () => {
       await request(app.getHttpServer())
         .post('/books')
         .send(bookData)
-        .expect(401); 
+        .expect(401);
     });
   });
 

@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ReviewsController } from './reviews.controller'; 
-import { ReviewsService } from './reviews.service'; 
-import { CreateReviewDto } from './dto/create-review.dto'; 
-import { UpdateReviewDto } from './dto/update-review.dto'; 
+import { ReviewsController } from './reviews.controller';
+import { ReviewsService } from './reviews.service';
+import { CreateReviewDto } from './dto/create-review.dto';
+import { UpdateReviewDto } from './dto/update-review.dto';
 
 describe('ReviewsController', () => {
   let controller: ReviewsController;

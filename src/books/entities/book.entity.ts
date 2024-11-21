@@ -35,7 +35,8 @@ export class BookEntity {
 
   @ApiProperty({
     example: 10,
-    description: 'The popularity score of the book, determined by review counts',
+    description:
+      'The popularity score of the book, determined by review counts',
     minimum: 0,
   })
   popularity: number;
