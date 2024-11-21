@@ -31,10 +31,55 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    return {
-      accessToken: this.jwtService.sign(payload),
-    };
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    await this.updateRefreshToken(user.id, tokens.refreshToken);
+    return tokens;
+  }
+
+  async generateTokens(userId: number, email: string, role: string) {
+    const accessToken = this.jwtService.sign(
+      { sub: userId, email, role },
+      { secret: 'ACCESS_SECRET', expiresIn: '15m' },
+    );
+
+    const refreshToken = this.jwtService.sign(
+      { sub: userId, email },
+      { secret: 'REFRESH_SECRET', expiresIn: '7d' },
+    );
+
+    return { accessToken, refreshToken };
+  }
+
+  async updateRefreshToken(userId: number, refreshToken: string) {
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: hashedRefreshToken },
+    });
+  }
+
+  async refreshTokens(userId: number, refreshToken: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user || !user.refreshToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const isValid = await bcrypt.compare(refreshToken, user.refreshToken);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    await this.updateRefreshToken(user.id, tokens.refreshToken);
+    return tokens;
+  }
+
+  async logout(userId: number) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: null },
+    });
   }
 
   async validateUser(userId: number) {
