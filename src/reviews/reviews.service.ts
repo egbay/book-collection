@@ -10,7 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { randomUUID } from 'crypto';
-import { BooksService } from 'src/books/books.service';
+import { BooksService } from '../books/books.service';
 import { logSuccess, logError, logWarn } from '../utils/logger.util';
 
 @Injectable()

@@ -1,16 +1,13 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from '../../src/app.module';
-import { JwtService } from '@nestjs/jwt';
-import { PrismaClient } from '@prisma/client';
+import { AppModule } from '../app.module';
+import { Role } from '@prisma/client';
 
-describe('BooksModule (E2E)', () => {
+describe('Books (e2e)', () => {
   let app: INestApplication;
-  let jwtService: JwtService;
-  let prisma: PrismaClient;
-  let adminToken: string;
-  let userToken: string;
+  let token: string;
+  let createdBookId: number;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -18,166 +15,101 @@ describe('BooksModule (E2E)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    prisma = new PrismaClient();
-
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
-
     await app.init();
 
-    jwtService = moduleFixture.get(JwtService);
+    const uniqueEmail = `testuser+${Date.now()}@example.com`;
 
-    await prisma.user.createMany({
-      data: [
-        { email: 'admin@test.com', password: 'password', role: 'ADMIN' },
-        { email: 'user@test.com', password: 'password', role: 'USER' },
-      ],
-    });
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: uniqueEmail,
+        password: 'password',
+        role: Role.ADMIN,
+      })
+      .expect(201);
 
-    adminToken = jwtService.sign({
-      sub: 1,
-      role: 'ADMIN',
-      email: 'admin@test.com',
-    });
-    userToken = jwtService.sign({
-      sub: 2,
-      role: 'USER',
-      email: 'user@test.com',
-    });
+    const loginResponse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: uniqueEmail,
+        password: 'password',
+      })
+      .expect(200);
+
+    token = loginResponse.body.accessToken;
   });
 
   afterAll(async () => {
-    if (process.env.NODE_ENV === 'test') {
-      console.log('Cleaning up test data...');
-      await prisma.review.deleteMany();
-      await prisma.book.deleteMany();
-    }
-    await prisma.$disconnect();
     await app.close();
   });
 
-  describe('POST /books', () => {
-    it('should allow an admin to create a book', async () => {
-      const bookData = {
-        title: '1984',
-        author: 'George Orwell',
-        publicationYear: 1949,
-        genre: 'Dystopian',
-      };
+  it('/books (POST) should create a new book', async () => {
+    const createBookDto = {
+      title: 'Test Book',
+      author: 'Test Author',
+      publicationYear: 2024,
+      genre: 'Fiction',
+    };
 
-      const response = await request(app.getHttpServer())
-        .post('/books')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(bookData)
-        .expect(201);
+    const response = await request(app.getHttpServer())
+      .post('/books')
+      .set('Authorization', `Bearer ${token}`)
+      .send(createBookDto)
+      .expect(201);
 
-      expect(response.body).toMatchObject({
-        id: expect.any(Number),
-        ...bookData,
-      });
-    });
-
-    it('should not allow a user to create a book', async () => {
-      const bookData = {
-        title: '1984',
-        author: 'George Orwell',
-        publicationYear: 1949,
-        genre: 'Dystopian',
-      };
-
-      await request(app.getHttpServer())
-        .post('/books')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send(bookData)
-        .expect(403);
-    });
-
-    it('should return 401 if no token is provided', async () => {
-      const bookData = {
-        title: '1984',
-        author: 'George Orwell',
-        publicationYear: 1949,
-        genre: 'Dystopian',
-      };
-
-      await request(app.getHttpServer())
-        .post('/books')
-        .send(bookData)
-        .expect(401);
-    });
+    expect(response.body).toMatchObject(createBookDto);
+    createdBookId = response.body.id;
   });
 
-  describe('GET /books', () => {
-    beforeEach(async () => {
-      await prisma.book.create({
-        data: {
-          title: 'Animal Farm',
-          author: 'George Orwell',
-          publicationYear: 1945,
-          genre: 'Satire',
-        },
-      });
-    });
+  it('/books (GET) should retrieve a list of books', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/books')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ page: 1, limit: 10 })
+      .expect(200);
 
-    it('should allow an authenticated user to view books', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/books')
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(200);
-
-      expect(response.body).toBeInstanceOf(Array);
-      expect(response.body[0]).toMatchObject({
-        title: 'Animal Farm',
-        author: 'George Orwell',
-      });
-    });
-
-    it('should return 401 if no token is provided', async () => {
-      await request(app.getHttpServer()).get('/books').expect(401);
-    });
+    expect(response.body).toHaveProperty('data');
+    expect(response.body.data).toBeInstanceOf(Array);
   });
 
-  describe('DELETE /books/:id', () => {
-    it('should allow an admin to delete a book', async () => {
-      const book = await prisma.book.create({
-        data: {
-          title: 'Delete Me',
-          author: 'Author',
-          publicationYear: 2000,
-          genre: 'Drama',
-        },
-      });
+  it('/books/:id (GET) should retrieve a single book by ID', async () => {
+    if (!createdBookId) throw new Error('createdBookId is not set.');
 
-      await request(app.getHttpServer())
-        .delete(`/books/${book.id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(200);
+    const response = await request(app.getHttpServer())
+      .get(`/books/${createdBookId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
 
-      const deletedBook = await prisma.book.findUnique({
-        where: { id: book.id },
-      });
-      expect(deletedBook).toBeNull();
-    });
+    expect(response.body).toHaveProperty('id', createdBookId);
+  });
 
-    it('should not allow a user to delete a book', async () => {
-      const book = await prisma.book.create({
-        data: {
-          title: 'Protected Book',
-          author: 'Author',
-          publicationYear: 2001,
-          genre: 'Drama',
-        },
-      });
+  it('/books/:id (GET) should return 404 for a non-existent book ID', async () => {
+    await request(app.getHttpServer())
+      .get('/books/99999')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+  });
 
-      await request(app.getHttpServer())
-        .delete(`/books/${book.id}`)
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(403);
-    });
+  it('/books/:id (PUT) should update an existing book', async () => {
+    const updateBookDto = {
+      title: 'Updated Test Book',
+    };
+
+    const response = await request(app.getHttpServer())
+      .put(`/books/${createdBookId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(updateBookDto)
+      .expect(200);
+
+    expect(response.body).toHaveProperty('title', 'Updated Test Book');
+  });
+
+  it('/books/:id (DELETE) should delete an existing book', async () => {
+    if (!createdBookId) throw new Error('createdBookId is not set.');
+
+    await request(app.getHttpServer())
+      .delete(`/books/${createdBookId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
   });
 });

@@ -25,8 +25,8 @@ import { UpdateBookDto } from './dto/update-book.dto';
 import { FilterBooksDto } from './dto/filter-book.dto';
 import { BookEntity } from './entities/book.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/roles.guard';
-import { Roles } from 'src/auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { Role } from '../auth/role.enum';
 
 @ApiTags('books')

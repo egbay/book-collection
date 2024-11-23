@@ -20,21 +20,25 @@ export class AuthController {
 
   @Public()
   @Post('register')
+  @HttpCode(HttpStatus.CREATED)
   async register(@Body() registerDto: RegisterDto) {
     const user = await this.authService.register(
       registerDto.email,
       registerDto.password,
+      registerDto.role,
     );
     return {
       user: {
         id: user.id,
         email: user.email,
+        role: user.role,
       },
     };
   }
 
   @Public()
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
     const tokens = await this.authService.login(
       loginDto.email,

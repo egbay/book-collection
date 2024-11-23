@@ -60,7 +60,8 @@ export class BooksService {
     });
 
     const { title, author, genre, page = 1, limit = 10, sort } = filterBooksDto;
-    const skip = (page - 1) * limit;
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
 
     try {
       const [books, total] = await Promise.all([
@@ -78,7 +79,7 @@ export class BooksService {
           },
           orderBy: sort ? { [sort]: 'asc' } : undefined,
           skip,
-          take: limit,
+          take: take,
         }),
         this.prisma.book.count({
           where: {
