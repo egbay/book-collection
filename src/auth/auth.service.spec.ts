@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { UnauthorizedException } from '@nestjs/common';
+import { Role } from '@prisma/client';
 
 jest.mock('bcrypt');
 
@@ -45,26 +46,29 @@ describe('AuthService', () => {
       const email = 'test@example.com';
       const password = 'securepassword';
       const hashedPassword = 'hashedpassword';
+      const role = Role.USER;
 
       (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
       prismaMock.user.create.mockResolvedValue({
         id: 1,
         email,
         password: hashedPassword,
+        role,
       });
 
-      const result = await authService.register(email, password);
+      const result = await authService.register(email, password, role);
 
       expect(result).toEqual({
         id: 1,
         email,
-        password: hashedPassword,
+        role,
       });
       expect(bcrypt.hash).toHaveBeenCalledWith(password, 10);
       expect(prismaMock.user.create).toHaveBeenCalledWith({
         data: {
           email,
           password: hashedPassword,
+          role,
         },
       });
     });
@@ -72,10 +76,11 @@ describe('AuthService', () => {
     it('should handle errors during registration', async () => {
       const email = 'test@example.com';
       const password = 'securepassword';
+      const role = 'USER';
 
       prismaMock.user.create.mockRejectedValue(new Error('Database error'));
 
-      await expect(authService.register(email, password)).rejects.toThrow(
+      await expect(authService.register(email, password, role)).rejects.toThrow(
         'Database error',
       );
     });

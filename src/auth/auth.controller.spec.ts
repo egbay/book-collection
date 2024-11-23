@@ -3,6 +3,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { Role } from '@prisma/client';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -37,6 +38,7 @@ describe('AuthController', () => {
       const registerDto: RegisterDto = {
         email: 'test@example.com',
         password: 'securepassword',
+        role: Role.USER,
       };
 
       authServiceMock.register.mockResolvedValue({
@@ -44,7 +46,7 @@ describe('AuthController', () => {
         email: registerDto.email,
         password: 'hashedpassword',
         name: 'Test User',
-        role: 'user',
+        role: Role.USER,
         address: '123 Test St',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -56,11 +58,13 @@ describe('AuthController', () => {
         user: {
           id: 1,
           email: 'test@example.com',
+          role: Role.USER,
         },
       });
       expect(authServiceMock.register).toHaveBeenCalledWith(
         registerDto.email,
         registerDto.password,
+        registerDto.role,
       );
     });
 
