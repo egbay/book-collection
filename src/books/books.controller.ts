@@ -10,6 +10,7 @@ import {
   UseGuards,
   Req,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -57,7 +58,12 @@ export class BooksController {
     type: BookEntity,
   })
   async createBook(@Req() req, @Body() createBookDto: CreateBookDto) {
-    const userId = req.user.userId;
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException(
+        'You must be logged in to perform this action',
+      );
+    }
     return this.booksService.create(userId, createBookDto);
   }
 

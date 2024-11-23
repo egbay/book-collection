@@ -17,6 +17,7 @@ describe('AuthService', () => {
       user: {
         create: jest.fn(),
         findUnique: jest.fn(),
+        update: jest.fn(),
       },
     };
 
@@ -81,7 +82,7 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('should return an access token for valid credentials', async () => {
+    it('should return an access token and refresh token for valid credentials', async () => {
       const email = 'test@example.com';
       const password = 'securepassword';
       const hashedPassword = 'hashedpassword';
@@ -90,20 +91,44 @@ describe('AuthService', () => {
         id: 1,
         email,
         password: hashedPassword,
+        role: 'user',
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-      jwtServiceMock.sign.mockReturnValue('jwt-token');
+
+      jwtServiceMock.sign
+        .mockImplementationOnce((payload, options) => {
+          expect(payload).toEqual({ sub: 1, email, role: 'user' });
+          expect(options).toEqual({
+            secret: process.env.ACCESS_SECRET,
+            expiresIn: '15m',
+          });
+          return 'access-token';
+        })
+        .mockImplementationOnce((payload, options) => {
+          expect(payload).toEqual({ sub: 1, email });
+          expect(options).toEqual({
+            secret: process.env.REFRESH_SECRET,
+            expiresIn: '7d',
+          });
+          return 'refresh-token';
+        });
+
+      prismaMock.user.update.mockResolvedValue(undefined);
 
       const result = await authService.login(email, password);
 
-      expect(result).toEqual({ accessToken: 'jwt-token' });
+      expect(result).toEqual({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      });
       expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
         where: { email },
       });
       expect(bcrypt.compare).toHaveBeenCalledWith(password, hashedPassword);
-      expect(jwtServiceMock.sign).toHaveBeenCalledWith({
-        sub: 1,
-        email,
+      expect(jwtServiceMock.sign).toHaveBeenCalledTimes(2);
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { refreshToken: expect.any(String) },
       });
     });
 

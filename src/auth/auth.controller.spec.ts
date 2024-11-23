@@ -53,14 +53,10 @@ describe('AuthController', () => {
       const result = await authController.register(registerDto);
 
       expect(result).toEqual({
-        id: 1,
-        email: 'test@example.com',
-        password: 'hashedpassword',
-        name: 'Test User',
-        role: 'user',
-        address: '123 Test St',
-        createdAt: expect.any(Date),
-        updatedAt: expect.any(Date),
+        user: {
+          id: 1,
+          email: 'test@example.com',
+        },
       });
       expect(authServiceMock.register).toHaveBeenCalledWith(
         registerDto.email,

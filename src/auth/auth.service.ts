@@ -36,21 +36,21 @@ export class AuthService {
     return tokens;
   }
 
-  async generateTokens(userId: number, email: string, role: string) {
+  private async generateTokens(userId: number, email: string, role: string) {
     const accessToken = this.jwtService.sign(
       { sub: userId, email, role },
-      { secret: 'ACCESS_SECRET', expiresIn: '15m' },
+      { secret: process.env.ACCESS_SECRET, expiresIn: '15m' }, 
     );
 
     const refreshToken = this.jwtService.sign(
       { sub: userId, email },
-      { secret: 'REFRESH_SECRET', expiresIn: '7d' },
+      { secret: process.env.REFRESH_SECRET, expiresIn: '7d' },
     );
 
     return { accessToken, refreshToken };
   }
 
-  async updateRefreshToken(userId: number, refreshToken: string) {
+  private async updateRefreshToken(userId: number, refreshToken: string) {
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
     await this.prisma.user.update({
       where: { id: userId },

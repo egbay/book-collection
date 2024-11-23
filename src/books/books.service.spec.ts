@@ -173,13 +173,13 @@ describe('BooksService', () => {
 
       await expect(service.findOne(1, 1)).rejects.toThrow(NotFoundException);
 
-      expect(loggerMock.warn).toHaveBeenCalledWith(
-        'Book with ID 1 not found',
-        expect.objectContaining({
-          userId: 1,
-          eventId: expect.any(String),
-        }),
-      );
+      expect(loggerMock.warn).toHaveBeenCalledWith({
+        level: 'warn',
+        message: 'Book with ID 1 not found',
+        eventId: expect.any(String),
+        userId: 1,
+        details: { id: 1 },
+      });
     });
   });
 

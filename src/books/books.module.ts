@@ -9,9 +9,11 @@ import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
   imports: [
+    AuthModule,
     PrismaModule,
     WinstonModule.forRoot({
       transports: [

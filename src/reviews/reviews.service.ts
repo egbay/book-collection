@@ -11,6 +11,7 @@ import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { randomUUID } from 'crypto';
 import { BooksService } from 'src/books/books.service';
+import { logSuccess, logError, logWarn } from '../utils/logger.util';
 
 @Injectable()
 export class ReviewsService {
@@ -20,39 +21,9 @@ export class ReviewsService {
     private readonly booksService: BooksService,
   ) {}
 
-  private logSuccess(
-    message: string,
-    eventId: string,
-    userId: number,
-    data: any = {},
-  ) {
-    this.logger.info(message, {
-      timestamp: new Date().toISOString(),
-      eventId,
-      userId,
-      meta: data,
-    });
-  }
-
-  private logError(
-    message: string,
-    eventId: string,
-    userId: number,
-    error: any,
-  ) {
-    const errorMeta =
-      error instanceof Error ? { stack: error.stack } : { error };
-    this.logger.error(message, {
-      timestamp: new Date().toISOString(),
-      eventId,
-      userId,
-      meta: errorMeta,
-    });
-  }
-
   async create(userId: number, createReviewDto: CreateReviewDto) {
     const eventId = randomUUID();
-    this.logSuccess('Creating a new review', eventId, userId, {
+    logSuccess(this.logger, 'Creating a new review', eventId, userId, {
       createReviewDto,
     });
 
@@ -68,77 +39,73 @@ export class ReviewsService {
       });
 
       const newRating = await this.booksService.calculateBookRating(bookId);
-      await this.prisma.book.update({
-        where: { id: bookId },
-        data: { rating: newRating },
-      });
-
       const newPopularity =
         await this.booksService.calculateBookPopularity(bookId);
+
       await this.prisma.book.update({
         where: { id: bookId },
-        data: { popularity: newPopularity },
+        data: { rating: newRating, popularity: newPopularity },
       });
 
-      this.logSuccess(
-        'Review created successfully and book data updated',
-        eventId,
-        userId,
-        {
-          reviewId: review.id,
-          bookId,
-          newRating,
-        },
-      );
+      logSuccess(this.logger, 'Review created successfully', eventId, userId, {
+        reviewId: review.id,
+        bookId,
+        newRating,
+        newPopularity,
+      });
 
       return review;
     } catch (error) {
-      this.logError('Error creating review', eventId, userId, error);
+      logError(this.logger, 'Error creating review', eventId, userId, error);
       throw new InternalServerErrorException('Failed to create review');
     }
   }
 
   async findAll(userId: number) {
     const eventId = randomUUID();
-    this.logSuccess('Fetching all reviews', eventId, userId);
+    logSuccess(this.logger, 'Fetching all reviews', eventId, userId, {});
 
     try {
       const reviews = await this.prisma.review.findMany({
-        include: {
-          user: true,
-          book: true,
-        },
+        include: { user: true, book: true },
       });
 
-      this.logSuccess('Reviews fetched successfully', eventId, userId, {
+      logSuccess(this.logger, 'Reviews fetched successfully', eventId, userId, {
         count: reviews.length,
       });
       return reviews;
     } catch (error) {
-      this.logError('Error fetching reviews', eventId, userId, error);
+      logError(this.logger, 'Error fetching reviews', eventId, userId, error);
       throw new InternalServerErrorException('Failed to fetch reviews');
     }
   }
 
   async findOne(userId: number, id: number) {
     const eventId = randomUUID();
-    this.logSuccess(`Fetching review with ID: ${id}`, eventId, userId);
+    logSuccess(this.logger, `Fetching review with ID: ${id}`, eventId, userId, {
+      id,
+    });
 
     try {
       const review = await this.prisma.review.findUnique({
         where: { id },
-        include: {
-          user: true,
-          book: true,
-        },
+        include: { user: true, book: true },
       });
 
       if (!review) {
-        this.logger.warn(`Review with ID ${id} not found`, { userId, eventId });
+        logWarn(
+          this.logger,
+          `Review with ID ${id} not found`,
+          eventId,
+          userId,
+          {
+            id,
+          },
+        );
         throw new NotFoundException(`Review with ID ${id} not found`);
       }
 
-      this.logSuccess('Review fetched successfully', eventId, userId, {
+      logSuccess(this.logger, 'Review fetched successfully', eventId, userId, {
         reviewId: id,
       });
 
@@ -148,7 +115,7 @@ export class ReviewsService {
         throw error;
       }
 
-      this.logError('Error fetching review', eventId, userId, error);
+      logError(this.logger, 'Error fetching review', eventId, userId, error);
       throw new InternalServerErrorException(
         `Failed to fetch review with ID ${id}`,
       );
@@ -157,36 +124,29 @@ export class ReviewsService {
 
   async update(userId: number, id: number, updateReviewDto: UpdateReviewDto) {
     const eventId = randomUUID();
-    this.logSuccess(`Updating review with ID: ${id}`, eventId, userId, {
+    logSuccess(this.logger, `Updating review with ID: ${id}`, eventId, userId, {
       updateReviewDto,
     });
 
     const { userId: dtoUserId, bookId: dtoBookId, ...rest } = updateReviewDto;
 
-    const data: any = {
-      ...rest,
-    };
-
-    if (dtoUserId) {
-      data.user = { connect: { id: dtoUserId } };
-    }
-
-    if (dtoBookId) {
-      data.book = { connect: { id: dtoBookId } };
-    }
-
     try {
       const updatedReview = await this.prisma.review.update({
         where: { id },
-        data,
+        data: {
+          ...rest,
+          ...(dtoUserId && { user: { connect: { id: dtoUserId } } }),
+          ...(dtoBookId && { book: { connect: { id: dtoBookId } } }),
+        },
       });
 
-      this.logSuccess('Review updated successfully', eventId, userId, {
+      logSuccess(this.logger, 'Review updated successfully', eventId, userId, {
         reviewId: id,
       });
+
       return updatedReview;
     } catch (error) {
-      this.logError('Error updating review', eventId, userId, error);
+      logError(this.logger, 'Error updating review', eventId, userId, error);
       throw new InternalServerErrorException(
         `Failed to update review with ID ${id}`,
       );
@@ -195,7 +155,9 @@ export class ReviewsService {
 
   async remove(userId: number, id: number) {
     const eventId = randomUUID();
-    this.logSuccess(`Deleting review with ID: ${id}`, eventId, userId);
+    logSuccess(this.logger, `Deleting review with ID: ${id}`, eventId, userId, {
+      id,
+    });
 
     try {
       const existingReview = await this.findOne(userId, id);
@@ -212,7 +174,8 @@ export class ReviewsService {
         data: { popularity: newPopularity, rating: newRating },
       });
 
-      this.logSuccess(
+      logSuccess(
+        this.logger,
         'Review deleted successfully and book data updated',
         eventId,
         userId,
@@ -226,11 +189,7 @@ export class ReviewsService {
 
       return { message: `Review with ID ${id} deleted successfully` };
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-
-      this.logError('Error deleting review', eventId, userId, error);
+      logError(this.logger, 'Error deleting review', eventId, userId, error);
       throw new InternalServerErrorException(
         `Failed to delete review with ID ${id}`,
       );

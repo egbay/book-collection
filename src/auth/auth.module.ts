@@ -22,6 +22,7 @@ import { RolesGuard } from './roles.guard';
     AuthService,
     PrismaService,
     JwtStrategy,
+    JwtAuthGuard,
     Reflector,
     {
       provide: APP_GUARD,

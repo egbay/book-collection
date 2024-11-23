@@ -57,22 +57,26 @@ describe('ReviewsService', () => {
       const createReviewDto = {
         userId: 1,
         bookId: 1,
-        content: 'Great!',
+        content: 'Great book!',
         rating: 5,
       };
-      const createdReview = { id: 1, ...createReviewDto };
 
-      prismaMock.review.create.mockResolvedValue(createdReview);
+      const newReview = {
+        id: 1,
+        ...createReviewDto,
+      };
+
+      prismaMock.review.create.mockResolvedValue(newReview);
       booksServiceMock.calculateBookRating.mockResolvedValue(4.5);
-      booksServiceMock.calculateBookPopularity.mockResolvedValue(100);
+      booksServiceMock.calculateBookPopularity.mockResolvedValue(10);
       prismaMock.book.update.mockResolvedValue({});
 
       const result = await service.create(1, createReviewDto);
 
-      expect(result).toEqual(createdReview);
+      expect(result).toEqual(newReview);
       expect(prismaMock.review.create).toHaveBeenCalledWith({
         data: {
-          content: 'Great!',
+          content: 'Great book!',
           rating: 5,
           user: { connect: { id: 1 } },
           book: { connect: { id: 1 } },
@@ -80,7 +84,6 @@ describe('ReviewsService', () => {
       });
       expect(booksServiceMock.calculateBookRating).toHaveBeenCalledWith(1);
       expect(booksServiceMock.calculateBookPopularity).toHaveBeenCalledWith(1);
-      expect(prismaMock.book.update).toHaveBeenCalledTimes(2);
     });
   });
 
