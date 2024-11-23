@@ -1,6 +1,6 @@
 # Book Collection API
 
-Bu proje, **NestJS** kullanılarak geliştirilen bir backend API'dır. Kitap ve inceleme (review) yönetimi, kullanıcı doğrulama, rol tabanlı erişim kontrolü ve sayfalama gibi özellikler sunar. JWT tabanlı kimlik doğrulama ve refresh token desteği ile güvenli bir şekilde çalışır. Ek olarak, loglama ve Docker ile kolayca çalıştırılabilir.
+Bu proje, **NestJS** kullanılarak geliştirilen bir backend API'dır. Kitap ve inceleme (review) yönetimi, kullanıcı doğrulama, rol tabanlı erişim kontrolü ve sayfalama gibi özellikler sunar. JWT tabanlı kimlik doğrulama ve refresh token desteği ile güvenli bir şekilde çalışır. Ek olarak, Docker ile kolayca çalıştırılabilir.
 
 ---
 
@@ -134,7 +134,7 @@ Bu proje, **NestJS** kullanılarak geliştirilen bir backend API'dır. Kitap ve 
 - Bildirim sistemi
 - Detaylı analiz panelleri
 
-### 15. Swagger ile API Belgelendirme
+### 15. Swagger ile API Dokümantasyonu
 
 - Swagger kullanılarak proje için interaktif bir API dokümantasyonu sağlanmıştır.
 - Geliştiriciler, Swagger arayüzü üzerinden API'nin tüm endpoint'lerini görüntüleyebilir, test edebilir ve dökümantasyon detaylarına erişebilir.
